@@ -139,16 +139,26 @@ export class TerminalUI {
     return new Promise<string>((resolve) => {
       const lines: string[] = ['']
       let currentLine = 0
+      let cursorCol = 0  // cursor position within current line
 
       if (process.stdin.isTTY) {
         process.stdin.setRawMode(true)
       }
       process.stdin.resume()
 
+      const promptLen = (line: number) => {
+        // Stripped length of prompt (for cursor positioning)
+        return line === 0 ? 2 : 2  // "❯ " or "  "
+      }
+
       const redrawCurrentLine = () => {
-        // Clear current line and rewrite
         const prompt = currentLine === 0 ? this.PROMPT : this.CONTINUATION
         process.stdout.write(`\r${ESC}2K${prompt}${lines[currentLine]}`)
+        // Move cursor to correct position
+        const diff = lines[currentLine].length - cursorCol
+        if (diff > 0) {
+          process.stdout.write(`${ESC}${diff}D`) // move left
+        }
       }
 
       const cleanup = () => {
@@ -179,9 +189,17 @@ export class TerminalUI {
 
         // Alt+Enter — new line
         if (key.name === 'return' && key.meta) {
+          // Split current line at cursor
+          const rest = lines[currentLine].substring(cursorCol)
+          lines[currentLine] = lines[currentLine].substring(0, cursorCol)
           currentLine++
-          lines.splice(currentLine, 0, '')
-          process.stdout.write(`\n${this.CONTINUATION}`)
+          lines.splice(currentLine, 0, rest)
+          cursorCol = 0
+          // Redraw: clear from cursor to end, print newline + continuation + rest
+          process.stdout.write(`${ESC}0J\n${this.CONTINUATION}${rest}`)
+          if (rest.length > 0) {
+            process.stdout.write(`\r${ESC}${promptLen(currentLine)}C`)
+          }
           return
         }
 
@@ -193,34 +211,93 @@ export class TerminalUI {
           return
         }
 
+        // Left arrow
+        if (key.name === 'left') {
+          if (cursorCol > 0) {
+            cursorCol--
+            process.stdout.write(`${ESC}1D`)
+          }
+          return
+        }
+
+        // Right arrow
+        if (key.name === 'right') {
+          if (cursorCol < lines[currentLine].length) {
+            cursorCol++
+            process.stdout.write(`${ESC}1C`)
+          }
+          return
+        }
+
+        // Home / Ctrl+A — start of line
+        if (key.name === 'home' || (key.ctrl && key.name === 'a')) {
+          cursorCol = 0
+          redrawCurrentLine()
+          return
+        }
+
+        // End / Ctrl+E — end of line
+        if (key.name === 'end' || (key.ctrl && key.name === 'e')) {
+          cursorCol = lines[currentLine].length
+          redrawCurrentLine()
+          return
+        }
+
+        // Up arrow — move to previous line
+        if (key.name === 'up') {
+          if (currentLine > 0) {
+            currentLine--
+            cursorCol = Math.min(cursorCol, lines[currentLine].length)
+            // Move terminal cursor up and redraw
+            process.stdout.write(`${ESC}A`)
+            redrawCurrentLine()
+          }
+          return
+        }
+
+        // Down arrow — move to next line
+        if (key.name === 'down') {
+          if (currentLine < lines.length - 1) {
+            currentLine++
+            cursorCol = Math.min(cursorCol, lines[currentLine].length)
+            // Move terminal cursor down and redraw
+            process.stdout.write(`${ESC}B`)
+            redrawCurrentLine()
+          }
+          return
+        }
+
         // Backspace
         if (key.name === 'backspace') {
-          if (lines[currentLine].length > 0) {
-            // Delete last char on current line
-            lines[currentLine] = lines[currentLine].slice(0, -1)
+          if (cursorCol > 0) {
+            lines[currentLine] = lines[currentLine].substring(0, cursorCol - 1) + lines[currentLine].substring(cursorCol)
+            cursorCol--
             redrawCurrentLine()
           } else if (currentLine > 0) {
             // Merge with previous line
+            const prevLen = lines[currentLine - 1].length
+            lines[currentLine - 1] += lines[currentLine]
             lines.splice(currentLine, 1)
             currentLine--
-            // Move cursor up, redraw that line
+            cursorCol = prevLen
             process.stdout.write(`${ESC}A\r${ESC}2K`)
             redrawCurrentLine()
           }
           return
         }
 
-        // Ignore other control/meta keys (arrows, etc.)
+        // Ignore other control/meta keys
         if (key.ctrl || key.meta || !key.sequence) return
-        // Filter out non-printable sequences (arrow keys emit sequences like \x1b[A)
-        if (key.name && ['up', 'down', 'left', 'right', 'tab', 'escape',
-          'home', 'end', 'pageup', 'pagedown', 'insert', 'delete',
+        // Filter non-printable sequences
+        if (key.name && ['tab', 'escape',
+          'pageup', 'pagedown', 'insert', 'delete',
           'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12'
         ].includes(key.name)) return
 
-        // Printable character — append to current line
-        lines[currentLine] += key.sequence
-        process.stdout.write(key.sequence)
+        // Printable character — insert at cursor position
+        lines[currentLine] = lines[currentLine].substring(0, cursorCol) + key.sequence + lines[currentLine].substring(cursorCol)
+        cursorCol += key.sequence.length
+        redrawCurrentLine()
       }
 
       process.stdin.on('keypress', onKeypress)
@@ -384,7 +461,7 @@ export class TerminalUI {
           this.totalTokens = usage.promptTokens + usage.completionTokens
           // Print status line
           process.stdout.write(
-            ` ${C.muted}${this.config.model.model} · ${this.steps} steps · ${this.totalTokens} tokens${RESET}\n`
+            `\n${C.muted}${this.config.model.model} · ${this.steps} steps · ${this.totalTokens} tokens${RESET}\n`
           )
         },
         onError: (error) => {
