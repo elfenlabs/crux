@@ -89,66 +89,142 @@ function formatLine(line: string): string {
 export class TerminalUI {
   private controller: AgentController
   private config: CruxConfig
-  private rl: readline.Interface
   private steps = 0
   private totalTokens = 0
   private running = false
   private lineBuffer = ''
   private inCodeBlock = false
 
-
+  // Prompt strings
+  private readonly PROMPT = `${C.accent}${BOLD}❯ ${RESET}`
+  private readonly CONTINUATION = `${C.dim}  ${RESET}`
 
   constructor(controller: AgentController, config: CruxConfig) {
     this.controller = controller
     this.config = config
-    this.rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-      terminal: true,
-    })
   }
 
   /** Start the REPL */
   start(): void {
     this.printHeader()
 
-    // Handle Ctrl+C at the prompt — readline intercepts SIGINT
-    // before it reaches the process, so we must listen on rl
-    this.rl.on('SIGINT', () => {
-      if (this.running) return // handled by abortHandler in handleInput
-      process.stdout.write(`\n${C.muted} Goodbye.${RESET}\n`)
-      this.rl.close()
-      process.exit(0)
-    })
+    // Enable keypress events so we get structured key info
+    readline.emitKeypressEvents(process.stdin)
 
-    // Use on('line') instead of rl.question() to avoid readline
-    // interfering with stdout writes during agent execution
-    this.rl.on('line', async (input) => {
+    this.promptLoop()
+  }
+
+  private async promptLoop(): Promise<void> {
+    while (true) {
+      process.stdout.write(this.PROMPT)
+      const input = await this.readMultilineInput()
       const trimmed = input.trim()
-      if (!trimmed) {
-        this.showPrompt()
-        return
-      }
+
+      if (!trimmed) continue
 
       if (trimmed === 'exit' || trimmed === 'quit') {
         process.stdout.write(`${C.muted} Goodbye.${RESET}\n`)
-        this.rl.close()
         process.exit(0)
       }
 
-      // Pause readline so it doesn't interfere with agent output
-      this.rl.pause()
       await this.handleInput(trimmed)
-      this.rl.resume()
-      this.showPrompt()
-    })
-
-    this.showPrompt()
+    }
   }
 
-  private showPrompt(): void {
-    this.rl.setPrompt(`${C.accent}${BOLD}❯ ${RESET}`)
-    this.rl.prompt()
+  /**
+   * Read input with multiline support.
+   * Enter on empty line → submit, Enter on non-empty → new line.
+   */
+  private readMultilineInput(): Promise<string> {
+    return new Promise<string>((resolve) => {
+      const lines: string[] = ['']
+      let currentLine = 0
+
+      if (process.stdin.isTTY) {
+        process.stdin.setRawMode(true)
+      }
+      process.stdin.resume()
+
+      const redrawCurrentLine = () => {
+        // Clear current line and rewrite
+        const prompt = currentLine === 0 ? this.PROMPT : this.CONTINUATION
+        process.stdout.write(`\r${ESC}2K${prompt}${lines[currentLine]}`)
+      }
+
+      const cleanup = () => {
+        process.stdin.removeListener('keypress', onKeypress)
+        if (process.stdin.isTTY) {
+          process.stdin.setRawMode(false)
+        }
+      }
+
+      const onKeypress = (_ch: string | undefined, key: readline.Key | undefined) => {
+        if (!key) return
+
+        // Ctrl+C — exit
+        if (key.ctrl && key.name === 'c') {
+          cleanup()
+          process.stdout.write(`\n${C.muted} Goodbye.${RESET}\n`)
+          process.exit(0)
+          return
+        }
+
+        // Ctrl+D on empty input — exit
+        if (key.ctrl && key.name === 'd' && lines.length === 1 && lines[0] === '') {
+          cleanup()
+          process.stdout.write(`\n${C.muted} Goodbye.${RESET}\n`)
+          process.exit(0)
+          return
+        }
+
+        // Alt+Enter — new line
+        if (key.name === 'return' && key.meta) {
+          currentLine++
+          lines.splice(currentLine, 0, '')
+          process.stdout.write(`\n${this.CONTINUATION}`)
+          return
+        }
+
+        // Enter (plain) — submit
+        if (key.name === 'return') {
+          cleanup()
+          process.stdout.write('\n')
+          resolve(lines.join('\n'))
+          return
+        }
+
+        // Backspace
+        if (key.name === 'backspace') {
+          if (lines[currentLine].length > 0) {
+            // Delete last char on current line
+            lines[currentLine] = lines[currentLine].slice(0, -1)
+            redrawCurrentLine()
+          } else if (currentLine > 0) {
+            // Merge with previous line
+            lines.splice(currentLine, 1)
+            currentLine--
+            // Move cursor up, redraw that line
+            process.stdout.write(`${ESC}A\r${ESC}2K`)
+            redrawCurrentLine()
+          }
+          return
+        }
+
+        // Ignore other control/meta keys (arrows, etc.)
+        if (key.ctrl || key.meta || !key.sequence) return
+        // Filter out non-printable sequences (arrow keys emit sequences like \x1b[A)
+        if (key.name && ['up', 'down', 'left', 'right', 'tab', 'escape',
+          'home', 'end', 'pageup', 'pagedown', 'insert', 'delete',
+          'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12'
+        ].includes(key.name)) return
+
+        // Printable character — append to current line
+        lines[currentLine] += key.sequence
+        process.stdout.write(key.sequence)
+      }
+
+      process.stdin.on('keypress', onKeypress)
+    })
   }
 
   private printHeader(): void {
@@ -323,7 +399,7 @@ export class TerminalUI {
 
   /** Clean shutdown */
   destroy(): void {
-    this.rl.close()
+    process.stdin.pause()
   }
 }
 
