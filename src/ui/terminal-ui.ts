@@ -177,7 +177,7 @@ export class TerminalUI {
 
       await this.controller.run(input, {
         onThinkingStart: () => {
-          // Nothing — first chunk will start printing
+          process.stdout.write('\n')
         },
         onThinking: (chunk) => {
           process.stdout.write(`${C.thinking}${DIM}${chunk}${RESET}`)
@@ -238,6 +238,7 @@ export class TerminalUI {
         onToolResult: (event) => {
           const MAX_LINES = 10
 
+
           // Special formatting for exec_command results
           if (event.name === 'exec_command') {
             try {
@@ -296,7 +297,7 @@ export class TerminalUI {
             ...resultLines.slice(0, 15),
             ...(resultLines.length > 15 ? [`  ${C.muted}… (${resultLines.length - 15} more lines)${RESET}`] : []),
           ]
-          process.stdout.write(drawBox(boxLines, event.isError ? C.error : C.dim) + '\n')
+          process.stdout.write(drawBox(boxLines, event.isError ? C.error : C.dim) + '\n\n')
         },
         onComplete: (response, usage) => {
           // If output wasn't streamed via onOutput, print the full response now
