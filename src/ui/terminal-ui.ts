@@ -162,7 +162,8 @@ export class TerminalUI {
     let outputStarted = false
 
     // Handle Ctrl+C during execution — listen on raw stdin for \x03
-    // because readline is paused and won't emit SIGINT while paused
+    // because readline is paused and won't emit SIGINT while paused.
+    // We must resume stdin after rl.pause() pauses it, so data events flow.
     const abortHandler = (data: Buffer) => {
       if (data[0] === 0x03 && this.running) {
         this.controller.abort()
@@ -170,6 +171,7 @@ export class TerminalUI {
       }
     }
     process.stdin.on('data', abortHandler)
+    process.stdin.resume()
 
     try {
 
