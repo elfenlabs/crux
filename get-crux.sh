@@ -5,7 +5,8 @@ set -e
 # Usage: curl -fsSL https://raw.githubusercontent.com/elfenlabs/crux/master/get-crux.sh | bash
 
 REPO="https://github.com/elfenlabs/crux.git"
-INSTALL_DIR="$HOME/.crux"
+CRUX_HOME="$HOME/.crux"
+REPO_DIR="$CRUX_HOME/repository"
 BIN_DIR="/usr/local/bin"
 
 info() { printf "\033[1;34m→\033[0m %s\n" "$1"; }
@@ -33,17 +34,19 @@ else
 fi
 
 # ── Clone or update repo ──────────────────────────────────
-if [ -d "$INSTALL_DIR" ]; then
-  info "Updating existing installation at $INSTALL_DIR..."
-  git -C "$INSTALL_DIR" pull --ff-only || error "Failed to update. Try removing $INSTALL_DIR and re-running."
+mkdir -p "$CRUX_HOME"
+
+if [ -d "$REPO_DIR" ]; then
+  info "Updating existing installation..."
+  git -C "$REPO_DIR" pull --ff-only || error "Failed to update. Try removing $REPO_DIR and re-running."
 else
-  info "Cloning crux to $INSTALL_DIR..."
-  git clone "$REPO" "$INSTALL_DIR" || error "Failed to clone repository."
+  info "Cloning crux to $REPO_DIR..."
+  git clone "$REPO" "$REPO_DIR" || error "Failed to clone repository."
 fi
 
 # ── Install dependencies ──────────────────────────────────
 info "Installing dependencies..."
-cd "$INSTALL_DIR"
+cd "$REPO_DIR"
 bun install || error "Failed to install dependencies."
 
 # ── Create global command ─────────────────────────────────
@@ -51,10 +54,31 @@ info "Installing crux command to $BIN_DIR..."
 
 sudo tee "$BIN_DIR/crux" > /dev/null << EOF
 #!/bin/bash
-exec bun run "$INSTALL_DIR/src/index.ts" "\$@"
+exec bun run "$REPO_DIR/src/index.ts" "\$@"
 EOF
 
 sudo chmod +x "$BIN_DIR/crux"
+
+# ── Set up default config ─────────────────────────────────
+CONFIG_FILE="$CRUX_HOME/config.yaml"
+
+if [ ! -f "$CONFIG_FILE" ]; then
+  cat > "$CONFIG_FILE" << 'CONF'
+model:
+  provider: openai
+  base_url: https://api.openai.com
+  model: gpt-4o
+  api_key_env: OPENAI_API_KEY
+  temperature: 0.3
+
+agent:
+  max_steps: 50
+CONF
+  success "Config created at $CONFIG_FILE"
+  info "Edit it to set your provider, model, and API key env var."
+else
+  success "Config already exists at $CONFIG_FILE"
+fi
 
 # ── Done ──────────────────────────────────────────────────
 echo ""

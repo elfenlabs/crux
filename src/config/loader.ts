@@ -1,7 +1,7 @@
 /**
  * Crux — Config Loader
  *
- * Loads ~/.config/crux/crux.yaml, merges with defaults.
+ * Loads ~/.crux/config.yaml, merges with defaults.
  * Falls back gracefully if file doesn't exist.
  */
 
@@ -13,8 +13,8 @@ import { createOpenAIProvider } from '@elfenlabs/cog'
 import { DEFAULT_CONFIG } from './defaults.js'
 import type { CruxConfig } from './types.js'
 
-const CONFIG_DIR = join(homedir(), '.config', 'crux')
-const CONFIG_PATH = join(CONFIG_DIR, 'crux.yaml')
+const CONFIG_DIR = join(homedir(), '.crux')
+const CONFIG_PATH = join(CONFIG_DIR, 'config.yaml')
 
 /** Deep merge b into a (b wins) */
 function deepMerge<T extends Record<string, any>>(a: T, b: Partial<T>): T {
@@ -30,7 +30,7 @@ function deepMerge<T extends Record<string, any>>(a: T, b: Partial<T>): T {
   return result
 }
 
-/** Load config from ~/.config/crux/crux.yaml, merged with defaults */
+/** Load config from ~/.crux/config.yaml, merged with defaults */
 export function loadConfig(): CruxConfig {
   if (!existsSync(CONFIG_PATH)) {
     return DEFAULT_CONFIG
