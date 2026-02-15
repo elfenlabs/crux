@@ -481,11 +481,15 @@ export class TerminalUI {
               if (stdout) {
                 const lines = stdout.split('\n')
                 const shown = lines.slice(0, MAX_LINES)
-                for (const line of shown) {
-                  process.stdout.write(`  ${C.dim}${line}${RESET}\n`)
+                for (let i = 0; i < shown.length; i++) {
+                  if (i === 0) {
+                    process.stdout.write(`  ${C.success}⤷${RESET} ${C.dim}${shown[i]}${RESET}\n`)
+                  } else {
+                    process.stdout.write(`    ${C.dim}${shown[i]}${RESET}\n`)
+                  }
                 }
                 if (lines.length > MAX_LINES) {
-                  process.stdout.write(`  ${C.muted}… ${lines.length - MAX_LINES} more lines${RESET}\n`)
+                  process.stdout.write(`    ${C.muted}… ${lines.length - MAX_LINES} more lines${RESET}\n`)
                 }
               }
 
@@ -493,11 +497,16 @@ export class TerminalUI {
               if (stderr) {
                 const lines = stderr.split('\n')
                 const shown = lines.slice(0, MAX_LINES)
-                for (const line of shown) {
-                  process.stdout.write(`  ${C.error}${line}${RESET}\n`)
+                const prefix = stdout ? '    ' : `  ${C.success}⤷${RESET} `
+                for (let i = 0; i < shown.length; i++) {
+                  if (i === 0) {
+                    process.stdout.write(`${prefix}${C.error}${shown[i]}${RESET}\n`)
+                  } else {
+                    process.stdout.write(`    ${C.error}${shown[i]}${RESET}\n`)
+                  }
                 }
                 if (lines.length > MAX_LINES) {
-                  process.stdout.write(`  ${C.muted}… ${lines.length - MAX_LINES} more lines${RESET}\n`)
+                  process.stdout.write(`    ${C.muted}… ${lines.length - MAX_LINES} more lines${RESET}\n`)
                 }
               }
 
@@ -519,10 +528,10 @@ export class TerminalUI {
             const hostBlocks = result.split('\n\n')
             for (const block of hostBlocks) {
               const lines = block.split('\n').map((l: string) => l.trim())
-              const nameLine = lines.find((l: string) => l.endsWith(':') && !l.startsWith('host:') && !l.startsWith('user:') && !l.startsWith('tags:') && !l.startsWith('notes:') && !l.startsWith('key:') && !l.startsWith('port:') && !l.startsWith('jump:'))
+              const nameLine = lines.find((l: string) => l.endsWith(':') && !l.includes(' ') && !l.startsWith('host:') && !l.startsWith('user:') && !l.startsWith('tags:') && !l.startsWith('notes:') && !l.startsWith('key:') && !l.startsWith('port:') && !l.startsWith('jump:'))
               if (!nameLine) {
                 // Not a host block (e.g. "Found 3 hosts:" header or no-match message)
-                process.stdout.write(`  ${C.dim}${block.trim()}${RESET}\n`)
+                process.stdout.write(`  ${C.success}⤷${RESET} ${C.text}${block.trim()}${RESET}\n`)
                 continue
               }
               const name = nameLine.replace(/:$/, '')
@@ -535,13 +544,12 @@ export class TerminalUI {
               const tags = getField('tags:')
               const notes = getField('notes:').replace(/^"(.*)"$/, '$1').split('\n')[0]
 
-              let line = `  ${C.accent}${name}${RESET}${C.dim}:${RESET} `
+              let line = `      ${C.accent}${name}${RESET}${C.dim}:${RESET} `
               line += user ? `${C.text}${user}@${host}${RESET}` : `${C.text}${host}${RESET}`
-              if (tags) line += ` ${C.muted}tags: ${tags}${RESET}`
-              if (notes) line += ` ${C.muted}notes: ${notes}${RESET}`
+              if (tags) line += ` ${C.dim}${tags}${RESET}`
+              if (notes) line += ` ${C.thinking}${notes}${RESET}`
               process.stdout.write(line + '\n')
             }
-            process.stdout.write('\n')
             return
           }
 
