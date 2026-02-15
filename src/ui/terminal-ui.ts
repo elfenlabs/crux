@@ -9,6 +9,7 @@ import * as readline from 'node:readline'
 import { AgentController } from '../agent/controller.js'
 import type { CruxConfig } from '../config/types.js'
 import { renderMarkdown } from './markdown.js'
+import { getAbbreviatedCwd } from '../state/cwd-tracker.js'
 
 // ── ANSI Helpers ────────────────────────────────────────────────────────────
 
@@ -116,6 +117,7 @@ export class TerminalUI {
 
   private async promptLoop(): Promise<void> {
     while (true) {
+      process.stdout.write(`${C.dim}${getAbbreviatedCwd()}${RESET}\n`)
       process.stdout.write(this.PROMPT)
       const input = await this.readMultilineInput()
       const trimmed = input.trim()

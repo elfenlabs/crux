@@ -6,6 +6,7 @@
  */
 
 import { createTool } from '@elfenlabs/cog'
+import { getCwd, setCwd } from '../state/cwd-tracker.js'
 
 export const execCommand = createTool({
   id: 'exec_command',
@@ -24,12 +25,16 @@ export const execCommand = createTool({
       timeout?: number
     }
 
+    // When an explicit cwd is provided, make it sticky for future calls
+    if (cwd) setCwd(cwd)
+
+    const effectiveCwd = getCwd()
     const timeoutSec = timeout ?? 30
     const timeoutMs = timeoutSec * 1000
 
     try {
       const proc = Bun.spawn(['bash', '-c', command], {
-        cwd: cwd ?? process.cwd(),
+        cwd: effectiveCwd,
         stdout: 'pipe',
         stderr: 'pipe',
       })
