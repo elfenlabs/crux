@@ -523,11 +523,14 @@ export class TerminalUI {
           const resultLines = rendered.split('\n').map(
             line => `  ${color}${line}${RESET}`
           )
-          const boxLines = [
-            ...resultLines.slice(0, 15),
-            ...(resultLines.length > 15 ? [`  ${C.muted}… (${resultLines.length - 15} more lines)${RESET}`] : []),
-          ]
-          process.stdout.write(drawBox(boxLines, event.isError ? C.error : C.dim) + '\n\n')
+          const shown = resultLines.slice(0, 15)
+          for (const line of shown) {
+            process.stdout.write(line + '\n')
+          }
+          if (resultLines.length > 15) {
+            process.stdout.write(`  ${C.muted}… (${resultLines.length - 15} more lines)${RESET}\n`)
+          }
+          process.stdout.write('\n')
         },
         onComplete: (response, usage) => {
           // If output wasn't streamed via onOutput, print the full response now
