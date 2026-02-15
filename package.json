@@ -4,6 +4,9 @@
   "description": "An interactive agentic terminal shell for infrastructure operations",
   "type": "module",
   "main": "src/index.ts",
+  "bin": {
+    "crux": "src/index.ts"
+  },
   "scripts": {
     "dev": "bun run src/index.ts",
     "build": "tsc --noEmit"

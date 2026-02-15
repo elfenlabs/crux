@@ -9,17 +9,27 @@ Crux is a terminal-native AI agent that understands your infrastructure, execute
 - [Bun](https://bun.sh/) v1.0+
 - An OpenAI-compatible API endpoint (OpenAI, vLLM, OpenRouter, Ollama, etc.)
 
-## Setup
+## Install
 
-### 1. Clone & install
+```bash
+curl -fsSL https://raw.githubusercontent.com/elfenlabs/crux/master/get-crux.sh | bash
+```
+
+This installs Bun (if needed), clones the repo to `~/.crux/`, and makes the `crux` command available globally. Re-run to update.
+
+<details>
+<summary>Manual install</summary>
 
 ```bash
 git clone https://github.com/elfenlabs/crux.git
 cd crux
 bun install
+./install.sh
 ```
 
-### 2. Create config
+</details>
+
+### Configure
 
 Create `~/.config/crux/crux.yaml`:
 
@@ -40,10 +50,10 @@ If using OpenAI directly, set your API key:
 export OPENAI_API_KEY=sk-...
 ```
 
-### 3. Run
+### Run
 
 ```bash
-bun run dev
+crux
 ```
 
 Debug mode with request/response logging to `~/.config/crux/logs/`:
