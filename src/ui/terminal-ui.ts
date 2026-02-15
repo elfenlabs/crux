@@ -189,6 +189,48 @@ export class TerminalUI {
           return
         }
 
+        // Ctrl+Backspace (terminal sends Ctrl+W) — delete word back
+        if (key.ctrl && key.name === 'w') {
+          if (cursorCol > 0) {
+            const line = lines[currentLine]
+            let pos = cursorCol
+            while (pos > 0 && line[pos - 1] === ' ') pos--
+            while (pos > 0 && line[pos - 1] !== ' ') pos--
+            lines[currentLine] = line.substring(0, pos) + line.substring(cursorCol)
+            cursorCol = pos
+            redrawCurrentLine()
+          }
+          return
+        }
+
+        // Ctrl+Delete (terminal sends Meta+D) — delete word forward
+        if (key.meta && key.name === 'd') {
+          if (cursorCol < lines[currentLine].length) {
+            const line = lines[currentLine]
+            let pos = cursorCol
+            while (pos < line.length && line[pos] !== ' ') pos++
+            while (pos < line.length && line[pos] === ' ') pos++
+            lines[currentLine] = line.substring(0, cursorCol) + line.substring(pos)
+            redrawCurrentLine()
+          }
+          return
+        }
+
+        // Ctrl+U — kill line before cursor
+        if (key.ctrl && key.name === 'u') {
+          lines[currentLine] = lines[currentLine].substring(cursorCol)
+          cursorCol = 0
+          redrawCurrentLine()
+          return
+        }
+
+        // Ctrl+K — kill from cursor to end of line
+        if (key.ctrl && key.name === 'k') {
+          lines[currentLine] = lines[currentLine].substring(0, cursorCol)
+          redrawCurrentLine()
+          return
+        }
+
         // Alt+Enter — new line
         if (key.name === 'return' && key.meta) {
           // Split current line at cursor
@@ -213,18 +255,36 @@ export class TerminalUI {
           return
         }
 
-        // Left arrow
+        // Left arrow (Ctrl = word jump)
         if (key.name === 'left') {
-          if (cursorCol > 0) {
+          if (key.ctrl) {
+            const line = lines[currentLine]
+            let pos = cursorCol
+            // Skip whitespace backwards
+            while (pos > 0 && line[pos - 1] === ' ') pos--
+            // Skip word backwards
+            while (pos > 0 && line[pos - 1] !== ' ') pos--
+            cursorCol = pos
+            redrawCurrentLine()
+          } else if (cursorCol > 0) {
             cursorCol--
             process.stdout.write(`${ESC}1D`)
           }
           return
         }
 
-        // Right arrow
+        // Right arrow (Ctrl = word jump)
         if (key.name === 'right') {
-          if (cursorCol < lines[currentLine].length) {
+          if (key.ctrl) {
+            const line = lines[currentLine]
+            let pos = cursorCol
+            // Skip word forwards
+            while (pos < line.length && line[pos] !== ' ') pos++
+            // Skip whitespace forwards
+            while (pos < line.length && line[pos] === ' ') pos++
+            cursorCol = pos
+            redrawCurrentLine()
+          } else if (cursorCol < lines[currentLine].length) {
             cursorCol++
             process.stdout.write(`${ESC}1C`)
           }
@@ -288,11 +348,25 @@ export class TerminalUI {
           return
         }
 
+        // Delete (forward)
+        if (key.name === 'delete') {
+          if (cursorCol < lines[currentLine].length) {
+            lines[currentLine] = lines[currentLine].substring(0, cursorCol) + lines[currentLine].substring(cursorCol + 1)
+            redrawCurrentLine()
+          } else if (currentLine < lines.length - 1) {
+            // Merge next line into current
+            lines[currentLine] += lines[currentLine + 1]
+            lines.splice(currentLine + 1, 1)
+            redrawCurrentLine()
+          }
+          return
+        }
+
         // Ignore other control/meta keys
         if (key.ctrl || key.meta || !key.sequence) return
         // Filter non-printable sequences
         if (key.name && ['tab', 'escape',
-          'pageup', 'pagedown', 'insert', 'delete',
+          'pageup', 'pagedown', 'insert',
           'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12'
         ].includes(key.name)) return
 
