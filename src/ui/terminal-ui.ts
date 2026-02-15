@@ -512,6 +512,39 @@ export class TerminalUI {
             }
           }
 
+          // Special formatting for infra_query results
+          if (event.name === 'infra_query') {
+            const result = event.result
+            // Parse host blocks: "name:\n  host: ...\n  user: ...\n  tags: [...]\n  notes: ..."
+            const hostBlocks = result.split('\n\n')
+            for (const block of hostBlocks) {
+              const lines = block.split('\n').map((l: string) => l.trim())
+              const nameLine = lines.find((l: string) => l.endsWith(':') && !l.startsWith('host:') && !l.startsWith('user:') && !l.startsWith('tags:') && !l.startsWith('notes:') && !l.startsWith('key:') && !l.startsWith('port:') && !l.startsWith('jump:'))
+              if (!nameLine) {
+                // Not a host block (e.g. "Found 3 hosts:" header or no-match message)
+                process.stdout.write(`  ${C.dim}${block.trim()}${RESET}\n`)
+                continue
+              }
+              const name = nameLine.replace(/:$/, '')
+              const getField = (prefix: string) => {
+                const line = lines.find((l: string) => l.startsWith(prefix))
+                return line ? line.substring(prefix.length).trim() : ''
+              }
+              const host = getField('host:')
+              const user = getField('user:')
+              const tags = getField('tags:')
+              const notes = getField('notes:').replace(/^"(.*)"$/, '$1').split('\n')[0]
+
+              let line = `  ${C.accent}${name}${RESET}${C.dim}:${RESET} `
+              line += user ? `${C.text}${user}@${host}${RESET}` : `${C.text}${host}${RESET}`
+              if (tags) line += ` ${C.muted}tags: ${tags}${RESET}`
+              if (notes) line += ` ${C.muted}notes: ${notes}${RESET}`
+              process.stdout.write(line + '\n')
+            }
+            process.stdout.write('\n')
+            return
+          }
+
           // Generic tool result rendering (non-exec_command or parse failure)
           const result = event.result
           const color = event.isError ? C.error : C.dim
