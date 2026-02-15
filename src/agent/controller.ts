@@ -11,6 +11,8 @@ import type { Provider, Usage } from '@elfenlabs/cog'
 import { buildInstruction } from './instruction.js'
 import { getBuiltinTools } from '../tools/registry.js'
 import type { CruxConfig } from '../config/types.js'
+import type { InfraDatabase } from '../infra/types.js'
+import { loadInfraDatabase } from '../infra/database.js'
 
 // ── Event Types ─────────────────────────────────────────────────────────────
 
@@ -47,13 +49,15 @@ export class AgentController {
   private provider: Provider
   private config: CruxConfig
   private tools: Tool<any>[]
+  private infraDb: InfraDatabase
   private abortController: AbortController | null = null
 
   constructor(provider: Provider, config: CruxConfig) {
     this.ctx = createContext()
     this.provider = provider
     this.config = config
-    this.tools = getBuiltinTools()
+    this.infraDb = loadInfraDatabase()
+    this.tools = getBuiltinTools(this.infraDb)
   }
 
   /** Whether the agent is currently running */
@@ -70,7 +74,7 @@ export class AgentController {
       const result = await runAgent({
         ctx: this.ctx,
         provider: this.provider,
-        instruction: buildInstruction(this.config.agent?.instruction),
+        instruction: buildInstruction(this.infraDb, this.config.agent?.instruction),
         tools: this.tools,
         maxSteps: this.config.agent?.max_steps ?? 50,
         signal: this.abortController.signal,
