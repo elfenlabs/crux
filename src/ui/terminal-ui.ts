@@ -383,7 +383,7 @@ export class TerminalUI {
 
   private printHeader(): void {
     process.stdout.write(
-      `\n ${C.accent}${BOLD}⚡ crux${RESET} ${C.muted}— ops agent${RESET}\n\n`
+      `\n ${C.accent}${BOLD}⚡ crux${RESET} ${C.muted}— ops agent${RESET}\n`
     )
   }
 
