@@ -90,7 +90,7 @@ function formatLine(line: string): string {
 export class TerminalUI {
   private controller: AgentController
   private config: CruxConfig
-  private steps = 0
+
   private totalTokens = 0
   private running = false
   private lineBuffer = ''
@@ -117,7 +117,8 @@ export class TerminalUI {
 
   private async promptLoop(): Promise<void> {
     while (true) {
-      process.stdout.write(`${C.dim}${getAbbreviatedCwd()}${RESET}\n`)
+      const tokenSuffix = this.totalTokens > 0 ? ` · ${this.totalTokens} tokens` : ''
+      process.stdout.write(`\n${C.dim}${getAbbreviatedCwd()} · ${this.config.model.model}${tokenSuffix}${RESET}\n`)
       process.stdout.write(this.PROMPT)
       const input = await this.readMultilineInput()
       const trimmed = input.trim()
@@ -533,12 +534,7 @@ export class TerminalUI {
           if (!outputStarted && response) {
             process.stdout.write(renderMarkdown(response) + '\n')
           }
-          this.steps++
           this.totalTokens = usage.promptTokens + usage.completionTokens
-          // Print status line
-          process.stdout.write(
-            `\n${C.muted}${this.config.model.model} · ${this.steps} steps · ${this.totalTokens} tokens${RESET}\n`
-          )
         },
         onError: (error) => {
           process.stdout.write(`${C.error}${BOLD} ✗ ${error.message}${RESET}\n`)
