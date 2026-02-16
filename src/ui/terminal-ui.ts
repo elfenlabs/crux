@@ -589,6 +589,7 @@ export class TerminalUI {
       this.running = false
       process.stdin.removeListener('data', abortHandler)
       if (process.stdin.isTTY) process.stdin.setRawMode(false)
+      process.stdin.pause()
     }
   }
 
