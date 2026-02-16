@@ -12,14 +12,14 @@ function Info($msg)    { Write-Host "-> $msg" -ForegroundColor Cyan }
 function Success($msg) { Write-Host "[OK] $msg" -ForegroundColor Green }
 function Fail($msg)    { Write-Host "[FAIL] $msg" -ForegroundColor Red; exit 1 }
 
-# ── Check git ──────────────────────────────────────────────
+# --- Check git ---
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     Fail "git is required but not installed. Please install git first."
 }
 
-# ── Install bun if missing ─────────────────────────────────
+# --- Install bun if missing ---
 if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
-    Info "bun not found — installing..."
+    Info "bun not found - installing..."
     irm bun.sh/install.ps1 | iex
 
     # Refresh PATH for this session
@@ -34,7 +34,7 @@ if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
     Success "bun found at $((Get-Command bun).Source)"
 }
 
-# ── Clone or update repo ──────────────────────────────────
+# --- Clone or update repo ---
 if (-not (Test-Path $CruxHome)) {
     New-Item -ItemType Directory -Path $CruxHome -Force | Out-Null
 }
@@ -49,7 +49,7 @@ if (Test-Path $RepoDir) {
     if ($LASTEXITCODE -ne 0) { Fail "Failed to clone repository." }
 }
 
-# ── Install dependencies ──────────────────────────────────
+# --- Install dependencies ---
 Info "Installing dependencies..."
 Push-Location $RepoDir
 try {
@@ -59,7 +59,7 @@ try {
     Pop-Location
 }
 
-# ── Create global command ─────────────────────────────────
+# --- Create global command ---
 Info "Installing crux command to $BinDir..."
 
 if (-not (Test-Path $BinDir)) {
@@ -79,7 +79,7 @@ if ($UserPath -notlike "*$BinDir*") {
     Success "PATH already contains $BinDir"
 }
 
-# ── Set up default config ─────────────────────────────────
+# --- Set up default config ---
 $ConfigFile = Join-Path $CruxHome "config.yaml"
 
 if (-not (Test-Path $ConfigFile)) {
@@ -101,7 +101,7 @@ agent:
     Success "Config already exists at $ConfigFile"
 }
 
-# ── Done ──────────────────────────────────────────────────
+# --- Done ---
 Write-Host ""
 Success "crux installed successfully!"
 Write-Host ""
