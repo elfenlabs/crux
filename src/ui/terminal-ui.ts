@@ -391,18 +391,17 @@ export class TerminalUI {
     this.running = true
     let outputStarted = false
 
-    // Handle Ctrl+C during execution — listen on raw stdin for \x03
-    // because readline is paused and won't emit SIGINT while paused.
-    // We must resume stdin after rl.pause() pauses it, so data events flow.
-    const abortHandler = (data: Buffer) => {
-      if (data[0] === 0x03 && this.running) {
+    // Handle Ctrl+C during execution — use SIGINT signal handler.
+    // Registering a listener overrides Node's default exit behavior.
+    // This avoids raw mode toggling which corrupts stdin state on Windows.
+    const abortHandler = () => {
+      if (this.running) {
+        this.running = false
         this.controller.abort()
         process.stdout.write(`\n${C.warning} ⚠ Aborted${RESET}\n`)
       }
     }
-    process.stdin.on('data', abortHandler)
-    if (process.stdin.isTTY) process.stdin.setRawMode(true)
-    process.stdin.resume()
+    process.on('SIGINT', abortHandler)
 
     try {
 
@@ -587,9 +586,7 @@ export class TerminalUI {
       })
     } finally {
       this.running = false
-      process.stdin.removeListener('data', abortHandler)
-      if (process.stdin.isTTY) process.stdin.setRawMode(false)
-      process.stdin.pause()
+      process.removeListener('SIGINT', abortHandler)
     }
   }
 
