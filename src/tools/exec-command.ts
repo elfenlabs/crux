@@ -6,6 +6,7 @@
  */
 
 import { createTool } from '@elfenlabs/cog'
+import { join } from 'node:path'
 import { getCwd, setCwd } from '../state/cwd-tracker.js'
 
 export const execCommand = createTool({
@@ -33,7 +34,11 @@ export const execCommand = createTool({
     const timeoutMs = timeoutSec * 1000
 
     try {
-      const proc = Bun.spawn(['bash', '-c', command], {
+      const shell = process.platform === 'win32'
+        ? [join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'), '-NoProfile', '-Command', command]
+        : ['bash', '-c', command]
+
+      const proc = Bun.spawn(shell, {
         cwd: effectiveCwd,
         stdout: 'pipe',
         stderr: 'pipe',
