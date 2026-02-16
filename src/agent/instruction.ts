@@ -5,8 +5,23 @@
  * Injects infrastructure database context and tool guidance.
  */
 
+import { platform, release, arch, hostname } from 'node:os'
 import type { InfraDatabase } from '../infra/types.js'
 import { summarizeInfra } from '../infra/database.js'
+
+function getShell(): string {
+  if (process.platform === 'win32') return 'PowerShell'
+  return process.env.SHELL?.split('/').pop() || 'bash'
+}
+
+function getPlatformLabel(): string {
+  const os = platform()
+  const ver = release()
+  const cpu = arch()
+  if (os === 'win32') return `Windows (${ver}) ${cpu}`
+  if (os === 'darwin') return `macOS (${ver}) ${cpu}`
+  return `Linux (${ver}) ${cpu}`
+}
 
 const BASE_INSTRUCTION = `You are Crux, an expert infrastructure operations agent running directly on the user's machine.
 
@@ -18,6 +33,12 @@ You are NOT sandboxed. You run on the user's real workstation with full access t
 - SSH, SCP, rsync, and any installed CLI tools
 - kubectl, docker, helm, and other infrastructure CLIs
 - curl, wget, nc, and other network utilities
+
+**Platform:** ${getPlatformLabel()}
+**Shell:** ${getShell()}
+**Hostname:** ${hostname()}
+
+Always use commands appropriate for this platform and shell. For example, on Windows use PowerShell syntax (Get-Process, Get-ChildItem, etc.), not bash/Unix commands.
 
 ## Tools
 
