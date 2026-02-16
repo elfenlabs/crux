@@ -189,7 +189,7 @@ export class TerminalUI {
         if (key.ctrl && key.name === 'c') {
           cleanup()
           process.stdout.write(`\n${C.muted} Goodbye.${RESET}\n`)
-          process.exit(0)
+          process.stdin.destroy()
           return
         }
 
@@ -197,7 +197,7 @@ export class TerminalUI {
         if (key.ctrl && key.name === 'd' && lines.length === 1 && lines[0] === '') {
           cleanup()
           process.stdout.write(`\n${C.muted} Goodbye.${RESET}\n`)
-          process.exit(0)
+          process.stdin.destroy()
           return
         }
 
