@@ -23,4 +23,5 @@ export type CruxConfig = {
   model: ModelConfig
   agent?: AgentConfig
   search?: SearchConfig
+  log?: boolean
 }

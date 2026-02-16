@@ -36,15 +36,13 @@ if (process.argv.includes('--update')) {
     process.exit(0)
 }
 
-const debug = process.argv.includes('--debug')
-
 // Load config
 const config = loadConfig()
 let provider = createProviderFromConfig(config)
 
-if (debug) {
+if (config.log) {
     provider = createDebugProvider(provider)
-    console.log('🐛 Debug mode: logging to ~/.crux/logs/')
+    console.log(`📝 Logging to ${cruxHome('logs')}`)
 }
 
 // Create controller and UI

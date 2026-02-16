@@ -24,7 +24,7 @@ function logPath(): string {
 function writeLog(label: string, data: unknown) {
   ensureDir()
   const timestamp = new Date().toISOString()
-  const separator = '═'.repeat(80)
+  const separator = '-'.repeat(80)
   const content = `\n${separator}\n[${timestamp}] ${label}\n${separator}\n${JSON.stringify(data, null, 2)}\n`
   appendFileSync(logPath(), content, 'utf-8')
 }
