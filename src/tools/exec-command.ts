@@ -35,13 +35,28 @@ export const execCommand = createTool({
 
     try {
       const shell = process.platform === 'win32'
-        ? [join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'), '-NoProfile', '-Command', command]
+        ? [join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'), '-Command', command]
         : ['bash', '-c', command]
+
+      // On Windows, Bun runs in MINGW so the inherited PATH is Unix-style.
+      // Prepend Windows system directories so PowerShell can find standard commands.
+      let env: Record<string, string | undefined> | undefined
+      if (process.platform === 'win32') {
+        const sysRoot = process.env.SystemRoot || 'C:\\Windows'
+        const winPaths = [
+          join(sysRoot, 'System32'),
+          sysRoot,
+          join(sysRoot, 'System32', 'Wbem'),
+          join(sysRoot, 'System32', 'WindowsPowerShell', 'v1.0'),
+        ].join(';')
+        env = { ...process.env, PATH: `${winPaths};${process.env.PATH || ''}` }
+      }
 
       const proc = Bun.spawn(shell, {
         cwd: effectiveCwd,
         stdout: 'pipe',
         stderr: 'pipe',
+        ...(env ? { env } : {}),
       })
 
       // Sentinel so we can distinguish timeout from normal completion
