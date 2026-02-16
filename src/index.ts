@@ -23,7 +23,8 @@ if (process.argv.includes('--update')) {
         console.log('Running installer...')
         if (process.platform === 'win32') {
             const script = join(repoDir, 'get-crux.ps1')
-            execSync(`powershell -ExecutionPolicy Bypass -File "${script}"`, { stdio: 'inherit' })
+            const ps = join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+            execSync(`"${ps}" -ExecutionPolicy Bypass -File "${script}"`, { stdio: 'inherit' })
         } else {
             const script = join(repoDir, 'get-crux.sh')
             execSync(`bash "${script}"`, { stdio: 'inherit' })
