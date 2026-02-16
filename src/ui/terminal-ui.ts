@@ -112,17 +112,6 @@ export class TerminalUI {
     // Enable keypress events so we get structured key info
     readline.emitKeypressEvents(process.stdin)
 
-    // Handle Ctrl+C during execution — registered once to avoid
-    // Windows Console mode toggling that causes "Terminate batch job" prompts.
-    process.on('SIGINT', () => {
-      if (this.running) {
-        this.running = false
-        this.controller.abort()
-        process.stdout.write(`\n${C.warning} ⚠ Aborted${RESET}\n`)
-      }
-      // At prompt: ignore — keypress handler handles Ctrl+C in raw mode
-    })
-
     this.promptLoop()
   }
 
@@ -189,7 +178,7 @@ export class TerminalUI {
         if (key.ctrl && key.name === 'c') {
           cleanup()
           process.stdout.write(`\n${C.muted} Goodbye.${RESET}\n`)
-          process.stdin.destroy()
+          process.exit(0)
           return
         }
 
@@ -197,7 +186,7 @@ export class TerminalUI {
         if (key.ctrl && key.name === 'd' && lines.length === 1 && lines[0] === '') {
           cleanup()
           process.stdout.write(`\n${C.muted} Goodbye.${RESET}\n`)
-          process.stdin.destroy()
+          process.exit(0)
           return
         }
 
@@ -402,6 +391,17 @@ export class TerminalUI {
     this.running = true
     let outputStarted = false
 
+    // Handle Ctrl+C during execution via SIGINT.
+    // Only registered during execution to avoid Windows "Terminate batch job".
+    const abortHandler = () => {
+      if (this.running) {
+        this.running = false
+        this.controller.abort()
+        process.stdout.write(`\n${C.warning} ⚠ Aborted${RESET}\n`)
+      }
+    }
+    process.on('SIGINT', abortHandler)
+
     try {
 
       await this.controller.run(input, {
@@ -585,6 +585,7 @@ export class TerminalUI {
       })
     } finally {
       this.running = false
+      process.removeListener('SIGINT', abortHandler)
     }
   }
 
