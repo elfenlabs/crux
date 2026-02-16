@@ -7,10 +7,10 @@
 
 import { mkdirSync, appendFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { homedir } from 'node:os'
 import type { Provider, GenerateResult, Message, ToolSpec, StreamCallbacks } from '@elfenlabs/cog'
+import { cruxHome } from '../config/paths.js'
 
-const DEBUG_DIR = join(homedir(), '.config', 'crux', 'logs')
+const DEBUG_DIR = cruxHome('logs')
 
 function ensureDir() {
   mkdirSync(DEBUG_DIR, { recursive: true })

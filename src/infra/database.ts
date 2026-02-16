@@ -7,11 +7,11 @@
 
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
-import { homedir } from 'node:os'
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import type { Host, HostEntry, InfraDatabase, InfraInventoryFile } from './types.js'
+import { cruxHome } from '../config/paths.js'
 
-const INFRA_DIR = join(homedir(), '.crux', 'infrastructure')
+const INFRA_DIR = cruxHome('infrastructure')
 const MANUAL_FILE = join(INFRA_DIR, 'manual.yaml')
 
 // ── Loader ──────────────────────────────────────────────────────────────────

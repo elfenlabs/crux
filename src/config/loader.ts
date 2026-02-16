@@ -7,13 +7,13 @@
 
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { homedir } from 'node:os'
 import { parse as parseYaml } from 'yaml'
 import { createOpenAIProvider } from '@elfenlabs/cog'
 import { DEFAULT_CONFIG } from './defaults.js'
 import type { CruxConfig } from './types.js'
+import { cruxHome } from './paths.js'
 
-const CONFIG_DIR = join(homedir(), '.crux')
+const CONFIG_DIR = cruxHome()
 const CONFIG_PATH = join(CONFIG_DIR, 'config.yaml')
 
 /** Deep merge b into a (b wins) */

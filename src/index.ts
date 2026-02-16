@@ -8,21 +8,26 @@
 
 import { execSync } from 'node:child_process'
 import { join } from 'node:path'
-import { homedir } from 'node:os'
 import { loadConfig, createProviderFromConfig } from './config/loader.js'
+import { cruxHome } from './config/paths.js'
 import { createDebugProvider } from './agent/debug-provider.js'
 import { AgentController } from './agent/controller.js'
 import { TerminalUI } from './ui/terminal-ui.js'
 
 // ── Self-update ──────────────────────────────────────────
 if (process.argv.includes('--update')) {
-    const repoDir = join(homedir(), '.crux', 'repository')
-    const script = join(repoDir, 'get-crux.sh')
+    const repoDir = cruxHome('repository')
     try {
         console.log('Pulling latest...')
         execSync(`git -C "${repoDir}" pull --ff-only`, { stdio: 'inherit' })
         console.log('Running installer...')
-        execSync(`bash "${script}"`, { stdio: 'inherit' })
+        if (process.platform === 'win32') {
+            const script = join(repoDir, 'get-crux.ps1')
+            execSync(`powershell -ExecutionPolicy Bypass -File "${script}"`, { stdio: 'inherit' })
+        } else {
+            const script = join(repoDir, 'get-crux.sh')
+            execSync(`bash "${script}"`, { stdio: 'inherit' })
+        }
     } catch {
         console.error('Update failed.')
         process.exit(1)
