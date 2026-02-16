@@ -57,7 +57,7 @@ export class AgentController {
     this.provider = provider
     this.config = config
     this.infraDb = loadInfraDatabase()
-    this.tools = getBuiltinTools(this.infraDb)
+    this.tools = getBuiltinTools(this.infraDb, this.config)
   }
 
   /** Whether the agent is currently running */
@@ -74,7 +74,7 @@ export class AgentController {
       const result = await runAgent({
         ctx: this.ctx,
         provider: this.provider,
-        instruction: buildInstruction(this.infraDb, this.config.agent?.instruction),
+        instruction: buildInstruction(this.infraDb, this.config),
         tools: this.tools,
         maxSteps: this.config.agent?.max_steps ?? 50,
         signal: this.abortController.signal,

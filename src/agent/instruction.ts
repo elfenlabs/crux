@@ -7,6 +7,7 @@
 
 import { platform, release, arch, hostname } from 'node:os'
 import type { InfraDatabase } from '../infra/types.js'
+import type { CruxConfig } from '../config/types.js'
 import { summarizeInfra } from '../infra/database.js'
 
 function getShell(): string {
@@ -43,9 +44,8 @@ Always use commands appropriate for this platform and shell. For example, on Win
 ## Tools
 
 1. **exec_command** — Run ANY shell command on the local machine or remote hosts via SSH.
-2. **web_search** — Search the web via DuckDuckGo. Returns titles, URLs, and snippets.
-3. **infra_query** — Search the infrastructure database by host name or tag.
-4. **infra_modify** — Add, update, or remove hosts in the infrastructure database.
+2. **infra_query** — Search the infrastructure database by host name or tag.
+3. **infra_modify** — Add, update, or remove hosts in the infrastructure database.
 
 When the user asks you to SSH somewhere, connect to a host, check a server, run kubectl, etc., you MUST use exec_command to do it. Never say you "can't access the network" or "don't have SSH access" — you do, through exec_command.
 
@@ -80,8 +80,13 @@ Never apply infrastructure changes without showing the preview and getting user 
 - Be concise and direct — avoid long preambles
 - Never refuse a command by claiming you lack access. If something fails, report the actual error`
 
-export function buildInstruction(infraDb: InfraDatabase, customInstruction?: string): string {
+export function buildInstruction(infraDb: InfraDatabase, config: CruxConfig): string {
   let instruction = BASE_INSTRUCTION
+
+  // Add web_search tool if configured
+  if (config.search?.base_url) {
+    instruction += `\n\nYou also have access to:\n- **web_search** — Search the web via SearXNG. Returns titles, URLs, and snippets. Use this when you need external information — documentation, error messages, package versions, how-tos, etc.`
+  }
 
   // Inject infra summary if hosts exist
   const summary = summarizeInfra(infraDb)
@@ -89,8 +94,8 @@ export function buildInstruction(infraDb: InfraDatabase, customInstruction?: str
     instruction += `\n\n## Current Infrastructure\n\n${summary}`
   }
 
-  if (customInstruction) {
-    instruction += `\n\nAdditional instructions:\n${customInstruction}`
+  if (config.agent?.instruction) {
+    instruction += `\n\nAdditional instructions:\n${config.agent.instruction}`
   }
 
   return instruction

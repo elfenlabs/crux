@@ -15,7 +15,12 @@ export type AgentConfig = {
   instruction?: string
 }
 
+export type SearchConfig = {
+  base_url: string
+}
+
 export type CruxConfig = {
   model: ModelConfig
   agent?: AgentConfig
+  search?: SearchConfig
 }
