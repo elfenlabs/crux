@@ -8,9 +8,9 @@ $CruxHome = Join-Path $env:APPDATA "crux"
 $RepoDir  = Join-Path $CruxHome "repository"
 $BinDir   = Join-Path $CruxHome "bin"
 
-function Info($msg)    { Write-Host "→ $msg" -ForegroundColor Cyan }
-function Success($msg) { Write-Host "✓ $msg" -ForegroundColor Green }
-function Fail($msg)    { Write-Host "✗ $msg" -ForegroundColor Red; exit 1 }
+function Info($msg)    { Write-Host "-> $msg" -ForegroundColor Cyan }
+function Success($msg) { Write-Host "[OK] $msg" -ForegroundColor Green }
+function Fail($msg)    { Write-Host "[FAIL] $msg" -ForegroundColor Red; exit 1 }
 
 # ── Check git ──────────────────────────────────────────────
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
