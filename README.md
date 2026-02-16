@@ -11,11 +11,17 @@ Crux is a terminal-native AI agent that understands your infrastructure, execute
 
 ## Install
 
+**Linux / macOS:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/elfenlabs/crux/master/get-crux.sh | bash
 ```
 
-This installs Bun (if needed), clones the repo to `~/.crux/`, and makes the `crux` command available globally. Re-run to update.
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/elfenlabs/crux/master/get-crux.ps1 | iex
+```
+
+This installs Bun (if needed), clones the repo, and makes the `crux` command available globally. Re-run to update.
 
 <details>
 <summary>Manual install</summary>
@@ -31,7 +37,7 @@ bun install
 
 ### Configure
 
-Create `~/.config/crux/crux.yaml`:
+Create `~/.crux/config.yaml` (Windows: `%APPDATA%\crux\config.yaml`):
 
 ```yaml
 model:
@@ -56,7 +62,7 @@ export OPENAI_API_KEY=sk-...
 crux
 ```
 
-Debug mode with request/response logging to `~/.config/crux/logs/`:
+Debug mode with request/response logging to `~/.crux/logs/`:
 
 ```bash
 bun run dev --debug
@@ -64,7 +70,7 @@ bun run dev --debug
 
 ## Configuration
 
-All config lives under `~/.config/crux/`:
+All config lives under `~/.crux/` (Windows: `%APPDATA%\crux\`):
 
 | File | Purpose |
 |---|---|
