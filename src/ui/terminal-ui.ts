@@ -401,6 +401,7 @@ export class TerminalUI {
       }
     }
     process.stdin.on('data', abortHandler)
+    if (process.stdin.isTTY) process.stdin.setRawMode(true)
     process.stdin.resume()
 
     try {
@@ -587,6 +588,7 @@ export class TerminalUI {
     } finally {
       this.running = false
       process.stdin.removeListener('data', abortHandler)
+      if (process.stdin.isTTY) process.stdin.setRawMode(false)
     }
   }
 
