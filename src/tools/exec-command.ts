@@ -34,29 +34,20 @@ export const execCommand = createTool({
     const timeoutMs = timeoutSec * 1000
 
     try {
-      const shell = process.platform === 'win32'
-        ? [join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'), '-Command', command]
-        : ['bash', '-c', command]
-
       // On Windows, Bun runs in MINGW so the inherited PATH is Unix-style.
-      // Prepend Windows system directories so PowerShell can find standard commands.
-      let env: Record<string, string | undefined> | undefined
-      if (process.platform === 'win32') {
-        const sysRoot = process.env.SystemRoot || 'C:\\Windows'
-        const winPaths = [
-          join(sysRoot, 'System32'),
-          sysRoot,
-          join(sysRoot, 'System32', 'Wbem'),
-          join(sysRoot, 'System32', 'WindowsPowerShell', 'v1.0'),
-        ].join(';')
-        env = { ...process.env, PATH: `${winPaths};${process.env.PATH || ''}` }
-      }
+      // Have PowerShell reconstruct the real Windows PATH from the registry.
+      const shell = process.platform === 'win32'
+        ? [
+            join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+            '-Command',
+            `$env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User'); ${command}`,
+          ]
+        : ['bash', '-c', command]
 
       const proc = Bun.spawn(shell, {
         cwd: effectiveCwd,
         stdout: 'pipe',
         stderr: 'pipe',
-        ...(env ? { env } : {}),
       })
 
       // Sentinel so we can distinguish timeout from normal completion
