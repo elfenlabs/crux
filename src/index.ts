@@ -94,22 +94,24 @@ try {
 }
 
 if (resumeId) {
-    console.log(`📂 Continuing session ${controller.sessionId}\n`)
+    console.log(`\n \x1b[38;5;98m\x1b[1m⚡ crux\x1b[0m \x1b[38;5;240m— ops agent\x1b[0m\n`)
+    console.log(`\x1b[38;5;240m📂 Continuing session ${controller.sessionId}\x1b[0m\n`)
 
-    // Show last 3 messages for context
-    const msgs = controller.messages
-    const recent = msgs.slice(-3)
-    for (const msg of recent) {
-        const label = msg.role === 'user' ? '  \x1b[38;5;117m❯\x1b[0m' : '  \x1b[38;5;98m⚡\x1b[0m'
-        const preview = msg.content.split('\n')[0].substring(0, 80)
-        if (msg.role === 'user' || msg.role === 'assistant') {
+    // Show last 10 messages for context
+    const msgs = controller.messages.filter(m => m.role === 'user' || m.role === 'assistant')
+    const recent = msgs.slice(-10)
+    if (recent.length > 0) {
+        console.log(`\x1b[38;5;244mLast ${recent.length} messages:\x1b[0m`)
+        for (const msg of recent) {
+            const label = msg.role === 'user' ? '  \x1b[38;5;117m❯\x1b[0m' : '  \x1b[38;5;98m⚡\x1b[0m'
+            const preview = msg.content.split('\n')[0].substring(0, 80)
             console.log(`${label} ${preview}`)
         }
+        console.log()
     }
-    console.log()
 }
 
-const ui = new TerminalUI(controller, config)
+const ui = new TerminalUI(controller, config, !!resumeId)
 
 // Clean shutdown
 process.on('SIGTERM', () => {

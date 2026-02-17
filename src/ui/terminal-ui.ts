@@ -95,19 +95,23 @@ export class TerminalUI {
   private running = false
   private lineBuffer = ''
   private inCodeBlock = false
+  private skipHeader: boolean
 
   // Prompt strings
   private readonly PROMPT = `${C.accent}${BOLD}❯ ${RESET}`
   private readonly CONTINUATION = `${C.dim}  ${RESET}`
 
-  constructor(controller: AgentController, config: CruxConfig) {
+  constructor(controller: AgentController, config: CruxConfig, skipHeader = false) {
     this.controller = controller
     this.config = config
+    this.skipHeader = skipHeader
   }
 
   /** Start the REPL */
   start(): void {
-    this.printHeader()
+    if (!this.skipHeader) {
+      this.printHeader()
+    }
 
     // Enable keypress events so we get structured key info
     readline.emitKeypressEvents(process.stdin)
