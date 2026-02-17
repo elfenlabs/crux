@@ -121,7 +121,7 @@ if (resumeId) {
                 for (const tc of msg.toolCalls) {
                     const argsStr = JSON.stringify(tc.arguments)
                     const preview = argsStr.length > 60 ? argsStr.substring(0, 60) + '...' : argsStr
-                    console.log(`  \x1b[38;5;98m●\x1b[0m \x1b[38;5;240m${tc.name}\x1b[0m \x1b[38;5;244m${preview}\x1b[0m`)
+                    console.log(`  \x1b[38;5;98m●\x1b[0m  \x1b[38;5;240m${tc.name}\x1b[0m \x1b[38;5;244m${preview}\x1b[0m`)
                 }
                 // If there's also content, show it
                 if (msg.content?.trim()) {
