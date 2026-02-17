@@ -68,10 +68,18 @@ if (process.argv.includes('--list')) {
 let resumeId: string | undefined
 const resumeIdx = process.argv.indexOf('--resume')
 if (resumeIdx !== -1) {
-    resumeId = process.argv[resumeIdx + 1]
-    if (!resumeId) {
-        console.error('Usage: crux --resume <session-id>')
-        process.exit(1)
+    const nextArg = process.argv[resumeIdx + 1]
+    if (nextArg && !nextArg.startsWith('--')) {
+        resumeId = nextArg
+    } else {
+        // No ID given — resume the most recent session
+        const sm = new SessionManager()
+        const sessions = sm.list()
+        if (sessions.length === 0) {
+            console.error('No sessions to resume.')
+            process.exit(1)
+        }
+        resumeId = sessions[0].id
     }
 }
 
