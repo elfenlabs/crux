@@ -126,7 +126,7 @@ export class TerminalUI {
       if (!trimmed) continue
 
       if (trimmed === 'exit' || trimmed === 'quit') {
-        process.stdout.write(`${C.muted} Goodbye.${RESET}\n`)
+        process.stdout.write(`${C.muted} Session saved as ${this.controller.sessionId}. Goodbye.${RESET}\n`)
         process.exit(0)
       }
 
@@ -177,7 +177,7 @@ export class TerminalUI {
         // Ctrl+C — exit
         if (key.ctrl && key.name === 'c') {
           cleanup()
-          process.stdout.write(`\n${C.muted} Goodbye.${RESET}\n`)
+          process.stdout.write(`\n${C.muted} Session saved as ${this.controller.sessionId}. Goodbye.${RESET}\n`)
           process.exit(0)
           return
         }
@@ -185,7 +185,7 @@ export class TerminalUI {
         // Ctrl+D on empty input — exit
         if (key.ctrl && key.name === 'd' && lines.length === 1 && lines[0] === '') {
           cleanup()
-          process.stdout.write(`\n${C.muted} Goodbye.${RESET}\n`)
+          process.stdout.write(`\n${C.muted} Session saved as ${this.controller.sessionId}. Goodbye.${RESET}\n`)
           process.exit(0)
           return
         }

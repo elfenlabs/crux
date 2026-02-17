@@ -94,7 +94,19 @@ try {
 }
 
 if (resumeId) {
-    console.log(`📂 Resumed session: ${controller.sessionId}`)
+    console.log(`📂 Continuing session ${controller.sessionId}\n`)
+
+    // Show last 3 messages for context
+    const msgs = controller.messages
+    const recent = msgs.slice(-3)
+    for (const msg of recent) {
+        const label = msg.role === 'user' ? '  \x1b[38;5;117m❯\x1b[0m' : '  \x1b[38;5;98m⚡\x1b[0m'
+        const preview = msg.content.split('\n')[0].substring(0, 80)
+        if (msg.role === 'user' || msg.role === 'assistant') {
+            console.log(`${label} ${preview}`)
+        }
+    }
+    console.log()
 }
 
 const ui = new TerminalUI(controller, config)

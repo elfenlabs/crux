@@ -92,6 +92,11 @@ export class AgentController {
     return this.abortController !== null
   }
 
+  /** Read-only access to the conversation messages */
+  get messages(): readonly import('@elfenlabs/cog').Message[] {
+    return this.ctx.messages
+  }
+
   /** Persist the current session to disk */
   private saveSession(): void {
     // Extract summary from the first user message
