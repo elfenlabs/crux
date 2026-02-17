@@ -103,7 +103,7 @@ if (resumeId) {
     if (recent.length > 0) {
         console.log(`\x1b[38;5;244mLast ${recent.length} messages:\x1b[0m`)
         for (const msg of recent) {
-            const label = msg.role === 'user' ? '  \x1b[38;5;117m❯\x1b[0m' : '  \x1b[38;5;98m⚡\x1b[0m'
+            const label = msg.role === 'user' ? '  \x1b[38;5;117m❯\x1b[0m ' : '  \x1b[38;5;98m⚡\x1b[0m'
             const preview = msg.content.split('\n')[0].substring(0, 80)
             console.log(`${label} ${preview}`)
         }
