@@ -110,15 +110,34 @@ if (resumeId) {
     }
     console.log(`📂 Continuing session ${controller.sessionId}\n`)
 
-    // Show last 10 messages for context
-    const msgs = controller.messages.filter(m => m.role === 'user' || m.role === 'assistant')
+    // Show last 10 messages for context (skip tool results and system)
+    const msgs = controller.messages.filter(m => m.role !== 'system' && m.role !== 'tool')
     const recent = msgs.slice(-10)
     if (recent.length > 0) {
         console.log(`\x1b[38;5;244mLast ${recent.length} messages:\x1b[0m`)
         for (const msg of recent) {
-            const label = msg.role === 'user' ? '  \x1b[38;5;117m❯\x1b[0m ' : '  \x1b[38;5;98m⚡\x1b[0m'
-            const preview = msg.content.split('\n')[0].substring(0, 80)
-            console.log(`${label} ${preview}`)
+            // Tool call message (assistant with toolCalls but no/empty content)
+            if (msg.role === 'assistant' && msg.toolCalls && msg.toolCalls.length > 0) {
+                for (const tc of msg.toolCalls) {
+                    const argsStr = JSON.stringify(tc.arguments)
+                    const preview = argsStr.length > 60 ? argsStr.substring(0, 60) + '...' : argsStr
+                    console.log(`  \x1b[38;5;98m●\x1b[0m \x1b[38;5;240m${tc.name}\x1b[0m \x1b[38;5;244m${preview}\x1b[0m`)
+                }
+                // If there's also content, show it
+                if (msg.content?.trim()) {
+                    const text = msg.content.split('\n')[0]
+                    const preview = text.length > 80 ? text.substring(0, 80) + '...' : text
+                    console.log(`  \x1b[38;5;98m⚡\x1b[0m ${preview}`)
+                }
+            } else if (msg.role === 'user') {
+                const text = msg.content.split('\n')[0]
+                const preview = text.length > 80 ? text.substring(0, 80) + '...' : text
+                console.log(`  \x1b[38;5;117m❯\x1b[0m  ${preview}`)
+            } else if (msg.role === 'assistant') {
+                const text = msg.content.split('\n')[0]
+                const preview = text.length > 80 ? text.substring(0, 80) + '...' : text
+                console.log(`  \x1b[38;5;98m⚡\x1b[0m ${preview}`)
+            }
         }
         console.log()
     }
