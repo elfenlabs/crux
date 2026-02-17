@@ -74,7 +74,8 @@ All config lives under `~/.crux/` (Windows: `%APPDATA%\crux\`):
 
 | File | Purpose |
 |---|---|
-| `crux.yaml` | Model, agent, and UI settings |
+| `config.yaml` | Model, agent, and UI settings |
+| `sessions/` | Auto-saved conversation sessions (YAML) |
 
 ### Model Providers
 
@@ -107,6 +108,18 @@ Just type what you want to do:
 ```
 
 Use **Ctrl+C** to abort a running agent response.
+
+## Sessions
+
+Crux automatically saves your conversation after each agent turn to `~/.crux/sessions/`.
+
+```bash
+crux --list                          # list all saved sessions
+crux --resume                        # resume the most recent session
+crux --resume 2026-02-17T10-51-20    # resume a specific session by ID
+```
+
+When resuming, Crux displays the last 10 messages for context so you can pick up where you left off.
 
 ## License
 
