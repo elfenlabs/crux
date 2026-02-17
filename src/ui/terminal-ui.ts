@@ -153,18 +153,43 @@ export class TerminalUI {
       }
       process.stdin.resume()
 
-      const promptLen = (line: number) => {
-        // Stripped length of prompt (for cursor positioning)
-        return line === 0 ? 2 : 2  // "❯ " or "  "
-      }
+      const PROMPT_VISIBLE_LEN = 2  // "❯ " or "  " — visible character width
+
+      let prevRows = 1  // track how many physical rows the last render occupied
 
       const redrawCurrentLine = () => {
+        const cols = process.stdout.columns || 80
         const prompt = currentLine === 0 ? this.PROMPT : this.CONTINUATION
-        process.stdout.write(`\r${ESC}2K${prompt}${lines[currentLine]}`)
-        // Move cursor to correct position
-        const diff = lines[currentLine].length - cursorCol
-        if (diff > 0) {
-          process.stdout.write(`${ESC}${diff}D`) // move left
+        const totalVisualLen = PROMPT_VISIBLE_LEN + lines[currentLine].length
+
+        // Move cursor up to the first physical row of this logical line
+        if (prevRows > 1) {
+          process.stdout.write(`${ESC}${prevRows - 1}A`)
+        }
+        // Go to column 0 and clear everything from here to end of screen
+        process.stdout.write(`\r${ESC}J`)
+
+        // Write prompt + content
+        process.stdout.write(`${prompt}${lines[currentLine]}`)
+
+        // Calculate how many physical rows this now occupies
+        prevRows = Math.max(1, Math.ceil(totalVisualLen / cols))
+
+        // Position cursor correctly: figure out where cursorCol maps to
+        const cursorVisualPos = PROMPT_VISIBLE_LEN + cursorCol
+        const cursorRow = Math.floor(cursorVisualPos / cols)  // 0-based row from start
+        const cursorColPos = cursorVisualPos % cols            // 0-based column
+
+        // The terminal cursor is currently at the end of the written text
+        const endRow = prevRows - 1
+        // Move up from end to cursor row
+        if (endRow > cursorRow) {
+          process.stdout.write(`${ESC}${endRow - cursorRow}A`)
+        }
+        // Set column absolutely (1-based)
+        process.stdout.write(`\r`)
+        if (cursorColPos > 0) {
+          process.stdout.write(`${ESC}${cursorColPos}C`)
         }
       }
 
@@ -244,10 +269,11 @@ export class TerminalUI {
           currentLine++
           lines.splice(currentLine, 0, rest)
           cursorCol = 0
+          prevRows = 1  // new line starts fresh
           // Redraw: clear from cursor to end, print newline + continuation + rest
           process.stdout.write(`${ESC}0J\n${this.CONTINUATION}${rest}`)
           if (rest.length > 0) {
-            process.stdout.write(`\r${ESC}${promptLen(currentLine)}C`)
+            process.stdout.write(`\r${ESC}${PROMPT_VISIBLE_LEN}C`)
           }
           return
         }
