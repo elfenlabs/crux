@@ -13,6 +13,7 @@ import { getBuiltinTools } from '../tools/registry.js'
 import type { CruxConfig } from '../config/types.js'
 import type { InfraDatabase } from '../infra/types.js'
 import { loadInfraDatabase } from '../infra/database.js'
+import { SessionManager } from './session.js'
 
 // ── Event Types ─────────────────────────────────────────────────────────────
 
@@ -52,17 +53,60 @@ export class AgentController {
   private infraDb: InfraDatabase
   private abortController: AbortController | null = null
 
-  constructor(provider: Provider, config: CruxConfig) {
-    this.ctx = createContext()
+  private readonly session: SessionManager
+  private _sessionId: string
+  private _createdAt: string
+  private _totalTokens = 0
+
+  constructor(provider: Provider, config: CruxConfig, resumeSessionId?: string) {
     this.provider = provider
     this.config = config
     this.infraDb = loadInfraDatabase()
     this.tools = getBuiltinTools(this.infraDb, this.config)
+    this.session = new SessionManager()
+
+    // Restore or create a new session
+    if (resumeSessionId) {
+      const loaded = this.session.load(resumeSessionId)
+      if (!loaded) {
+        throw new Error(`Session not found: ${resumeSessionId}`)
+      }
+      this.ctx = loaded.ctx
+      this._sessionId = loaded.metadata.id
+      this._createdAt = loaded.metadata.created_at
+      this._totalTokens = loaded.metadata.total_tokens
+    } else {
+      this.ctx = createContext()
+      this._sessionId = this.session.generateId()
+      this._createdAt = new Date().toISOString()
+    }
+  }
+
+  /** Current session ID */
+  get sessionId(): string {
+    return this._sessionId
   }
 
   /** Whether the agent is currently running */
   get isRunning(): boolean {
     return this.abortController !== null
+  }
+
+  /** Persist the current session to disk */
+  private saveSession(): void {
+    // Extract summary from the first user message
+    const messages = this.ctx.messages
+    const firstUser = messages.find(m => m.role === 'user')
+    const summary = firstUser
+      ? firstUser.content.substring(0, 120).split('\n')[0]
+      : ''
+
+    this.session.save(this._sessionId, this.ctx, {
+      created_at: this._createdAt,
+      model: this.config.model.model,
+      total_tokens: this._totalTokens,
+      summary,
+    })
   }
 
   /** Run the agent with a user prompt */
@@ -105,11 +149,20 @@ export class AgentController {
             result: content,
             isError: false,
           })
+          // Auto-save after each tool call
+          this.saveSession()
         },
       })
 
+      this._totalTokens = result.usage.promptTokens + result.usage.completionTokens
       callbacks.onComplete?.(result.response, result.usage)
+
+      // Auto-save after completion
+      this.saveSession()
     } catch (err) {
+      // Save even on error/abort so partial work isn't lost
+      this.saveSession()
+
       if (err instanceof AgentAbortError) {
         callbacks.onError?.(new Error('Aborted'))
       } else if (err instanceof MaxStepsError) {

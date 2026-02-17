@@ -13,6 +13,7 @@ import { cruxHome } from './config/paths.js'
 import { createDebugProvider } from './agent/debug-provider.js'
 import { AgentController } from './agent/controller.js'
 import { TerminalUI } from './ui/terminal-ui.js'
+import { SessionManager } from './agent/session.js'
 
 // ── Self-update ──────────────────────────────────────────
 if (process.argv.includes('--update')) {
@@ -36,6 +37,44 @@ if (process.argv.includes('--update')) {
     process.exit(0)
 }
 
+// ── List sessions ────────────────────────────────────────
+if (process.argv.includes('--list')) {
+    const sm = new SessionManager()
+    const sessions = sm.list()
+
+    if (sessions.length === 0) {
+        console.log('No sessions found.')
+    } else {
+        // Header
+        const idW = 22, modelW = 20, tokW = 8, msgW = 5
+        console.log(
+            `${'ID'.padEnd(idW)} ${'Model'.padEnd(modelW)} ${'Tokens'.padStart(tokW)} ${'Msgs'.padStart(msgW)}  Summary`
+        )
+        console.log('─'.repeat(80))
+
+        for (const s of sessions) {
+            const id = s.id.padEnd(idW)
+            const model = s.model.padEnd(modelW)
+            const tokens = String(s.total_tokens).padStart(tokW)
+            const msgs = String(s.message_count).padStart(msgW)
+            const summary = s.summary.substring(0, 40)
+            console.log(`${id} ${model} ${tokens} ${msgs}  ${summary}`)
+        }
+    }
+    process.exit(0)
+}
+
+// ── Parse --resume flag ──────────────────────────────────
+let resumeId: string | undefined
+const resumeIdx = process.argv.indexOf('--resume')
+if (resumeIdx !== -1) {
+    resumeId = process.argv[resumeIdx + 1]
+    if (!resumeId) {
+        console.error('Usage: crux --resume <session-id>')
+        process.exit(1)
+    }
+}
+
 // Load config
 const config = loadConfig()
 let provider = createProviderFromConfig(config)
@@ -46,7 +85,18 @@ if (config.log) {
 }
 
 // Create controller and UI
-const controller = new AgentController(provider, config)
+let controller: AgentController
+try {
+    controller = new AgentController(provider, config, resumeId)
+} catch (err) {
+    console.error(err instanceof Error ? err.message : String(err))
+    process.exit(1)
+}
+
+if (resumeId) {
+    console.log(`📂 Resumed session: ${controller.sessionId}`)
+}
+
 const ui = new TerminalUI(controller, config)
 
 // Clean shutdown
@@ -57,3 +107,4 @@ process.on('SIGTERM', () => {
 
 // Start
 ui.start()
+
