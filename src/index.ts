@@ -96,11 +96,11 @@ try {
 }
 
 if (resumeId) {
-    console.log(`\n \x1b[38;5;98m\x1b[1m⚡ crux\x1b[0m \x1b[38;5;240m— ops agent\x1b[0m`)
+    console.log(`\n \x1b[38;5;98m\x1b[1m⚡ crux\x1b[0m \x1b[38;5;240m— ops agent\x1b[0m\n`)
     if (config.log) {
         console.log(`📝 Logging to ${cruxHome('logs')}`)
     }
-    console.log(`\n\x1b[38;5;240m📂 Continuing session ${controller.sessionId}\x1b[0m\n`)
+    console.log(`📂 Continuing session ${controller.sessionId}\n`)
 
     // Show last 10 messages for context
     const msgs = controller.messages.filter(m => m.role === 'user' || m.role === 'assistant')
