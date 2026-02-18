@@ -155,42 +155,66 @@ export class TerminalUI {
 
       const PROMPT_VISIBLE_LEN = 2  // "❯ " or "  " — visible character width
 
-      let prevRows = 1  // track how many physical rows the last render occupied
+      let totalPrevRows = 1  // total physical rows occupied by all lines in last render
+      let lastCursorAbsRow = 0  // physical row where the cursor was left after last redraw (0-based from first input row)
 
-      const redrawCurrentLine = () => {
+      /** Calculate the number of physical terminal rows a logical line occupies */
+      const physicalRows = (lineIdx: number): number => {
         const cols = process.stdout.columns || 80
-        const prompt = currentLine === 0 ? this.PROMPT : this.CONTINUATION
-        const totalVisualLen = PROMPT_VISIBLE_LEN + lines[currentLine].length
+        const visualLen = PROMPT_VISIBLE_LEN + lines[lineIdx].length
+        return Math.max(1, Math.ceil(visualLen / cols))
+      }
 
-        // Move cursor up to the first physical row of this logical line
-        if (prevRows > 1) {
-          process.stdout.write(`${ESC}${prevRows - 1}A`)
+      /** Redraw all input lines and position the cursor correctly */
+      const redrawAll = () => {
+        const cols = process.stdout.columns || 80
+
+        // Move cursor up from where it was left to the first physical row
+        if (lastCursorAbsRow > 0) {
+          process.stdout.write(`${ESC}${lastCursorAbsRow}A`)
         }
-        // Go to column 0 and clear everything from here to end of screen
+        // Clear from here to end of screen
         process.stdout.write(`\r${ESC}J`)
 
-        // Write prompt + content
-        process.stdout.write(`${prompt}${lines[currentLine]}`)
-
-        // Calculate how many physical rows this now occupies
-        prevRows = Math.max(1, Math.ceil(totalVisualLen / cols))
-
-        // Position cursor correctly: figure out where cursorCol maps to
-        const cursorVisualPos = PROMPT_VISIBLE_LEN + cursorCol
-        const cursorRow = Math.floor(cursorVisualPos / cols)  // 0-based row from start
-        const cursorColPos = cursorVisualPos % cols            // 0-based column
-
-        // The terminal cursor is currently at the end of the written text
-        const endRow = prevRows - 1
-        // Move up from end to cursor row
-        if (endRow > cursorRow) {
-          process.stdout.write(`${ESC}${endRow - cursorRow}A`)
+        // Render all lines
+        let newTotalRows = 0
+        for (let i = 0; i < lines.length; i++) {
+          const prompt = i === 0 ? this.PROMPT : this.CONTINUATION
+          if (i > 0) process.stdout.write('\n')
+          process.stdout.write(`${prompt}${lines[i]}`)
+          newTotalRows += physicalRows(i)
         }
-        // Set column absolutely (1-based)
+        totalPrevRows = newTotalRows
+
+        // Now position the cursor at (currentLine, cursorCol)
+        let cursorAbsRow = 0
+        for (let i = 0; i < currentLine; i++) {
+          cursorAbsRow += physicalRows(i)
+        }
+        const cursorVisualPos = PROMPT_VISIBLE_LEN + cursorCol
+        // When cursor is at end of line and exactly on a column boundary,
+        // the terminal uses deferred wrap (cursor stays on previous row).
+        // Adjust to prevent row over-count.
+        const atEndOfLine = cursorCol === lines[currentLine].length
+        const onBoundary = cursorVisualPos > 0 && cursorVisualPos % cols === 0
+        const adjustedPos = (atEndOfLine && onBoundary) ? cursorVisualPos - 1 : cursorVisualPos
+        cursorAbsRow += Math.floor(adjustedPos / cols)
+        const cursorColPos = adjustedPos % cols
+
+        // The terminal cursor is currently at the end of the last line's content
+        const endAbsRow = totalPrevRows - 1
+        // Move up from end to cursor row
+        if (endAbsRow > cursorAbsRow) {
+          process.stdout.write(`${ESC}${endAbsRow - cursorAbsRow}A`)
+        }
+        // Set column
         process.stdout.write(`\r`)
         if (cursorColPos > 0) {
           process.stdout.write(`${ESC}${cursorColPos}C`)
         }
+
+        // Remember where we left the cursor for next redraw
+        lastCursorAbsRow = cursorAbsRow
       }
 
       const cleanup = () => {
@@ -228,7 +252,7 @@ export class TerminalUI {
             while (pos > 0 && line[pos - 1] !== ' ') pos--
             lines[currentLine] = line.substring(0, pos) + line.substring(cursorCol)
             cursorCol = pos
-            redrawCurrentLine()
+            redrawAll()
           }
           return
         }
@@ -241,7 +265,7 @@ export class TerminalUI {
             while (pos < line.length && line[pos] !== ' ') pos++
             while (pos < line.length && line[pos] === ' ') pos++
             lines[currentLine] = line.substring(0, cursorCol) + line.substring(pos)
-            redrawCurrentLine()
+            redrawAll()
           }
           return
         }
@@ -250,31 +274,25 @@ export class TerminalUI {
         if (key.ctrl && key.name === 'u') {
           lines[currentLine] = lines[currentLine].substring(cursorCol)
           cursorCol = 0
-          redrawCurrentLine()
+          redrawAll()
           return
         }
 
         // Ctrl+K — kill from cursor to end of line
         if (key.ctrl && key.name === 'k') {
           lines[currentLine] = lines[currentLine].substring(0, cursorCol)
-          redrawCurrentLine()
+          redrawAll()
           return
         }
 
         // Alt+Enter — new line
         if (key.name === 'return' && key.meta) {
-          // Split current line at cursor
           const rest = lines[currentLine].substring(cursorCol)
           lines[currentLine] = lines[currentLine].substring(0, cursorCol)
           currentLine++
           lines.splice(currentLine, 0, rest)
           cursorCol = 0
-          prevRows = 1  // new line starts fresh
-          // Redraw: clear from cursor to end, print newline + continuation + rest
-          process.stdout.write(`${ESC}0J\n${this.CONTINUATION}${rest}`)
-          if (rest.length > 0) {
-            process.stdout.write(`\r${ESC}${PROMPT_VISIBLE_LEN}C`)
-          }
+          redrawAll()
           return
         }
 
@@ -289,17 +307,26 @@ export class TerminalUI {
         // Left arrow (Ctrl = word jump)
         if (key.name === 'left') {
           if (key.ctrl) {
-            const line = lines[currentLine]
-            let pos = cursorCol
-            // Skip whitespace backwards
-            while (pos > 0 && line[pos - 1] === ' ') pos--
-            // Skip word backwards
-            while (pos > 0 && line[pos - 1] !== ' ') pos--
-            cursorCol = pos
-            redrawCurrentLine()
+            // Word jump — if at start of line, wrap to end of previous line
+            if (cursorCol === 0 && currentLine > 0) {
+              currentLine--
+              cursorCol = lines[currentLine].length
+            } else {
+              const line = lines[currentLine]
+              let pos = cursorCol
+              while (pos > 0 && line[pos - 1] === ' ') pos--
+              while (pos > 0 && line[pos - 1] !== ' ') pos--
+              cursorCol = pos
+            }
+            redrawAll()
           } else if (cursorCol > 0) {
             cursorCol--
-            process.stdout.write(`${ESC}1D`)
+            redrawAll()
+          } else if (currentLine > 0) {
+            // Wrap to end of previous line
+            currentLine--
+            cursorCol = lines[currentLine].length
+            redrawAll()
           }
           return
         }
@@ -307,17 +334,26 @@ export class TerminalUI {
         // Right arrow (Ctrl = word jump)
         if (key.name === 'right') {
           if (key.ctrl) {
-            const line = lines[currentLine]
-            let pos = cursorCol
-            // Skip word forwards
-            while (pos < line.length && line[pos] !== ' ') pos++
-            // Skip whitespace forwards
-            while (pos < line.length && line[pos] === ' ') pos++
-            cursorCol = pos
-            redrawCurrentLine()
+            // Word jump — if at end of line, wrap to start of next line
+            if (cursorCol >= lines[currentLine].length && currentLine < lines.length - 1) {
+              currentLine++
+              cursorCol = 0
+            } else {
+              const line = lines[currentLine]
+              let pos = cursorCol
+              while (pos < line.length && line[pos] !== ' ') pos++
+              while (pos < line.length && line[pos] === ' ') pos++
+              cursorCol = pos
+            }
+            redrawAll()
           } else if (cursorCol < lines[currentLine].length) {
             cursorCol++
-            process.stdout.write(`${ESC}1C`)
+            redrawAll()
+          } else if (currentLine < lines.length - 1) {
+            // Wrap to start of next line
+            currentLine++
+            cursorCol = 0
+            redrawAll()
           }
           return
         }
@@ -325,14 +361,14 @@ export class TerminalUI {
         // Home / Ctrl+A — start of line
         if (key.name === 'home' || (key.ctrl && key.name === 'a')) {
           cursorCol = 0
-          redrawCurrentLine()
+          redrawAll()
           return
         }
 
         // End / Ctrl+E — end of line
         if (key.name === 'end' || (key.ctrl && key.name === 'e')) {
           cursorCol = lines[currentLine].length
-          redrawCurrentLine()
+          redrawAll()
           return
         }
 
@@ -341,9 +377,7 @@ export class TerminalUI {
           if (currentLine > 0) {
             currentLine--
             cursorCol = Math.min(cursorCol, lines[currentLine].length)
-            // Move terminal cursor up and redraw
-            process.stdout.write(`${ESC}A`)
-            redrawCurrentLine()
+            redrawAll()
           }
           return
         }
@@ -353,9 +387,7 @@ export class TerminalUI {
           if (currentLine < lines.length - 1) {
             currentLine++
             cursorCol = Math.min(cursorCol, lines[currentLine].length)
-            // Move terminal cursor down and redraw
-            process.stdout.write(`${ESC}B`)
-            redrawCurrentLine()
+            redrawAll()
           }
           return
         }
@@ -365,7 +397,7 @@ export class TerminalUI {
           if (cursorCol > 0) {
             lines[currentLine] = lines[currentLine].substring(0, cursorCol - 1) + lines[currentLine].substring(cursorCol)
             cursorCol--
-            redrawCurrentLine()
+            redrawAll()
           } else if (currentLine > 0) {
             // Merge with previous line
             const prevLen = lines[currentLine - 1].length
@@ -373,8 +405,7 @@ export class TerminalUI {
             lines.splice(currentLine, 1)
             currentLine--
             cursorCol = prevLen
-            process.stdout.write(`${ESC}A\r${ESC}2K`)
-            redrawCurrentLine()
+            redrawAll()
           }
           return
         }
@@ -383,12 +414,12 @@ export class TerminalUI {
         if (key.name === 'delete') {
           if (cursorCol < lines[currentLine].length) {
             lines[currentLine] = lines[currentLine].substring(0, cursorCol) + lines[currentLine].substring(cursorCol + 1)
-            redrawCurrentLine()
+            redrawAll()
           } else if (currentLine < lines.length - 1) {
             // Merge next line into current
             lines[currentLine] += lines[currentLine + 1]
             lines.splice(currentLine + 1, 1)
-            redrawCurrentLine()
+            redrawAll()
           }
           return
         }
@@ -404,7 +435,7 @@ export class TerminalUI {
         // Printable character — insert at cursor position
         lines[currentLine] = lines[currentLine].substring(0, cursorCol) + key.sequence + lines[currentLine].substring(cursorCol)
         cursorCol += key.sequence.length
-        redrawCurrentLine()
+        redrawAll()
       }
 
       process.stdin.on('keypress', onKeypress)
