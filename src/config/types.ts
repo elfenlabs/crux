@@ -12,6 +12,7 @@ export type ModelConfig = {
 
 export type AgentConfig = {
   max_steps?: number
+  max_context_tokens?: number
   instruction?: string
 }
 

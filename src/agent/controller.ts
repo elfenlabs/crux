@@ -5,7 +5,7 @@
  * Emits typed events that ink components subscribe to via callbacks.
  */
 
-import { createContext, runAgent, MaxStepsError, AgentAbortError } from '@elfenlabs/cog'
+import { createContext, runAgent, MaxStepsError, AgentAbortError, ContextBudgetError, SlidingWindowStrategy } from '@elfenlabs/cog'
 import type { Context, Tool } from '@elfenlabs/cog'
 import type { Provider, Usage } from '@elfenlabs/cog'
 import { buildInstruction } from './instruction.js'
@@ -51,6 +51,7 @@ export class AgentController {
   private config: CruxConfig
   private tools: Tool<any>[]
   private infraDb: InfraDatabase
+  private readonly evictionStrategy = new SlidingWindowStrategy()
   private abortController: AbortController | null = null
 
   private readonly session: SessionManager
@@ -126,6 +127,8 @@ export class AgentController {
         instruction: buildInstruction(this.infraDb, this.config),
         tools: this.tools,
         maxSteps: this.config.agent?.max_steps ?? 50,
+        maxContextTokens: this.config.agent?.max_context_tokens ?? 100_000,
+        evictionStrategy: this.evictionStrategy,
         signal: this.abortController.signal,
 
         // Streaming
@@ -172,6 +175,8 @@ export class AgentController {
         callbacks.onError?.(new Error('Aborted'))
       } else if (err instanceof MaxStepsError) {
         callbacks.onError?.(new Error('Exceeded maximum steps'))
+      } else if (err instanceof ContextBudgetError) {
+        callbacks.onError?.(new Error('Context budget exceeded — try starting a new session'))
       } else {
         callbacks.onError?.(err instanceof Error ? err : new Error(String(err)))
       }
